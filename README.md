@@ -1,8 +1,8 @@
-# NEXO 0.3
+# NEXO 0.4
 
 **Memoria audiovisual con evidencia temporal.** NEXO transforma vídeos, grabaciones, clases, entrevistas y otros materiales autorizados en fuentes consultables: cada fragmento conserva su procedencia y su posición temporal.
 
-> Estado: MVP 0.1 ampliado con memoria estructurada 0.2 y explorador web 0.3; todavía en fase de validación. No es todavía un SaaS multiusuario ni un sistema de IA autónomo. La primera entrega prioriza ingestión, transcripciones/subtítulos, búsqueda transversal y recuperación exacta de evidencias.
+> Estado: MVP 0.1 ampliado con memoria estructurada 0.2, explorador 0.3 y acontecimientos temporales 0.4; todavía en fase de validación. No es todavía un SaaS multiusuario ni un sistema de IA autónomo. La primera entrega prioriza ingestión, transcripciones/subtítulos, búsqueda transversal y recuperación exacta de evidencias.
 
 ## Qué puede hacer esta versión
 
@@ -93,13 +93,13 @@ Un espacio NEXO intenta crear un organismo y guardar referencias a los medios en
 
 ## Mind, Zyrion y LispAI
 
-Adaptador opcional hacia MiniNode Alset:
+Adaptador opcional hacia MiniNode Alset (no equivale a una integración con los motores internos de PrismaTEC-Core):
 
 - `POST /api/cognition/mind` → `/api/mind/tick`
 - `POST /api/cognition/zyrion` → `/api/zyrion`
 - `POST /api/cognition/lispai` → `/api/lispai`
 
-La salida cognitiva no concede autorización ni cambia evidencia fuente. Zyrion debe respetar el contrato acordado: `1=True`, `0=False`, `2=Indeterminado` (estado sumidero que activa otro nivel de razonamiento). No se activa inferencia automática hasta tener contratos y pruebas de cada proveedor.
+La salida cognitiva no concede autorización ni cambia evidencia fuente. El puente MiniNode es independiente del AIP de PrismaTEC-Core. En la versión actual de PrismaTEC-Core existen paquetes `runtime/mind` y `runtime/zyrion`, pero AIP v1 todavía no expone operaciones remotas para ellos. Además, su enumeración ternaria interna difiere del contrato de NEXO (`0=Falso`, `1=Verdadero`, `2=Indeterminado`); la integración requiere un contrato AIP explícito y una adaptación semántica validada. No se presenta como conectada hasta disponer de pruebas de extremo a extremo.
 
 ## Monetización inicial
 
