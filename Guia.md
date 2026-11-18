@@ -1,4 +1,4 @@
-# Guía de NEXO 0.1
+# Guía de NEXO 0.2
 
 ## Propósito
 
@@ -70,3 +70,39 @@ go vet ./...
 go build ./cmd/nexo
 node --check web/app.js
 ```
+
+## Memoria estructurada (NEXO 0.2)
+
+Después de indexar una transcripción, se pueden registrar entidades, afirmaciones y relaciones mediante la API. Cada anotación debe apuntar a uno o más `evidence_ids` existentes en el mismo espacio. La consulta agregada es:
+
+```http
+GET /api/projects/{project_id}/knowledge
+```
+
+Crear entidad:
+
+```http
+POST /api/projects/{project_id}/knowledge/entities
+Content-Type: application/json
+{"name":"Investigadora","type":"person","description":"Participante de la entrevista","evidence_ids":["ev_..."],"confidence":0.95}
+```
+
+Crear afirmación:
+
+```http
+POST /api/projects/{project_id}/knowledge/claims
+Content-Type: application/json
+{"text":"La investigadora describe el origen del proyecto.","kind":"statement","entity_ids":["ent_..."],"evidence_ids":["ev_..."],"confidence":0.9}
+```
+
+Una afirmación nueva toma `zyrion_state=2` si no se especifica. Los valores admitidos son `1=True`, `0=False` y `2=Indeterminado`. El estado es metadato explícito de la anotación, no una conclusión automática de Mind ni un permiso del Core.
+
+Crear relación:
+
+```http
+POST /api/projects/{project_id}/knowledge/relations
+Content-Type: application/json
+{"subject_entity_id":"ent_...","predicate":"participa_en","object_entity_id":"ent_...","evidence_ids":["ev_..."],"confidence":0.85}
+```
+
+La API rechaza evidencias inexistentes o pertenecientes a otro espacio, entidades de otro espacio, relaciones autorreferentes y valores de confianza fuera de 0..1. Esta fase crea una memoria estructurada manual y verificable; todavía no extrae entidades ni relaciones automáticamente.

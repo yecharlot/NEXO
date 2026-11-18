@@ -17,7 +17,7 @@ type Store struct {
 }
 
 func Open(path string) (*Store, error) {
-	s := &Store{path: path, db: domain.Database{Projects: map[string]domain.Project{}, Assets: map[string]domain.Asset{}}}
+	s := &Store{path: path, db: domain.Database{Projects: map[string]domain.Project{}, Assets: map[string]domain.Asset{}, Entities: map[string]domain.Entity{}, Claims: map[string]domain.Claim{}, Relations: map[string]domain.Relation{}}}
 	b, err := os.ReadFile(path)
 	if err == nil {
 		if err = json.Unmarshal(b, &s.db); err != nil {
@@ -32,6 +32,15 @@ func Open(path string) (*Store, error) {
 	}
 	if s.db.Assets == nil {
 		s.db.Assets = map[string]domain.Asset{}
+	}
+	if s.db.Entities == nil {
+		s.db.Entities = map[string]domain.Entity{}
+	}
+	if s.db.Claims == nil {
+		s.db.Claims = map[string]domain.Claim{}
+	}
+	if s.db.Relations == nil {
+		s.db.Relations = map[string]domain.Relation{}
 	}
 	return s, nil
 }
@@ -74,6 +83,24 @@ func (s *Store) GetAsset(id string) (domain.Asset, bool) {
 	defer s.mu.RUnlock()
 	a, ok := s.db.Assets[id]
 	return a, ok
+}
+func (s *Store) PutEntity(v domain.Entity) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.db.Entities[v.ID] = v
+	return s.persistLocked()
+}
+func (s *Store) PutClaim(v domain.Claim) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.db.Claims[v.ID] = v
+	return s.persistLocked()
+}
+func (s *Store) PutRelation(v domain.Relation) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.db.Relations[v.ID] = v
+	return s.persistLocked()
 }
 func (s *Store) ActivatePro() error {
 	s.mu.Lock()

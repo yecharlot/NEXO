@@ -1,9 +1,10 @@
-# Estado de la implementación NEXO 0.1
+# Estado de la implementación NEXO 0.2
 
-## Implementado en el árbol de trabajo
+## Implementado
 
 - Backend Go con API HTTP.
 - Persistencia JSON local con escritura temporal y rename.
+- Compatibilidad de lectura con bases 0.1: inicialización de mapas nuevos sin migración destructiva.
 - Espacios, carga de archivos y metadatos.
 - Transcripciones manuales con timestamps y subtítulos SRT.
 - Transcripción automática opcional por FFmpeg + API compatible con OpenAI, segmentada en bloques de 10 minutos.
@@ -15,33 +16,37 @@
 - Enlaces de reproducción temporales firmados para streaming/range.
 - Adaptador AIP v1 para crear/iniciar organismos y escribir referencias en memoria.
 - Proxy opcional para Mind, Zyrion y LispAI vía MiniNode.
+- Memoria estructurada manual: entidades, afirmaciones y relaciones.
+- Validación de pertenencia de evidencias y entidades al mismo espacio.
+- Estado Zyrion ternario en afirmaciones, con valor inicial 2 (Indeterminado).
 - Dockerfile y CI de Go.
 
-## Verificación ejecutada en este entorno
+## Verificación ejecutada en el entorno de trabajo
 
-- `go test ./...` — PASS.
+- `go test ./... -count=1` — PASS.
 - `go vet ./...` — PASS.
-- `go build -o /tmp/nexo ./cmd/nexo` — PASS.
 - `node --check web/app.js` — PASS.
-- Arranque HTTP y `GET /api/health` — PASS.
-- Servir interfaz estática — HTTP 200.
+- GitHub Actions de NEXO 0.1 — PASS en el commit base.
+
+La CI de la nueva rama debe ejecutarse después de publicar los cambios; no se declara validada hasta que GitHub Actions termine.
 
 ## No implementado / no afirmado
 
 - Comprensión visual multimodal de fotogramas.
-- Extracción automática de objetos/personas/escenas.
+- Extracción automática de objetos/personas/escenas/entidades/afirmaciones/relaciones.
 - Búsqueda semántica real por embeddings.
-- Grafo transversal de conceptos/relaciones.
+- Consulta y exploración interactiva del grafo.
 - Resolución de contradicciones mediante Mind/Zyrion.
 - Ejecución LispAI para reglas de dominio automáticas.
 - Autenticación multiusuario, Stripe webhooks y SaaS público.
 - Replicación/recovery de organismos desde la aplicación.
+- Validación de AIP contra un Core real y contratos MiniNode reales.
 
-## Siguiente bloque de trabajo
+## Próximo bloque
 
-1. Validar AIP contra un nodo PrismaTec-Core real y el MiniNode real.
-2. Añadir importación directa SRT/VTT desde interfaz.
-3. Añadir embeddings/reranking opcionales con evidencias obligatorias.
-4. Crear extractor de keyframes y proveedor multimodal con consentimiento.
-5. Implementar grafo de conocimiento con procedencia y estados Zyrion.
-6. Migrar JSON a SQLite/PostgreSQL antes de multiusuario.
+1. Añadir importación de anotaciones y visualización del grafo en interfaz.
+2. Diseñar extractor multimodal desacoplado que proponga, no confirme, entidades y afirmaciones.
+3. Añadir revisión humana y auditoría de cambios de estado.
+4. Validar Mind/Zyrion/LispAI con contratos reales y pruebas de integración.
+5. Migrar JSON a SQLite/PostgreSQL antes de multiusuario.
+6. Implementar identidad, aislamiento tenant, pagos y cuotas antes de SaaS público.

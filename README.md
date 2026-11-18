@@ -1,4 +1,4 @@
-# NEXO
+# NEXO 0.2
 
 **Memoria audiovisual con evidencia temporal.** NEXO transforma vídeos, grabaciones, clases, entrevistas y otros materiales autorizados en fuentes consultables: cada fragmento conserva su procedencia y su posición temporal.
 
@@ -134,3 +134,24 @@ go test ./...
 ## Licencia y contenido
 
 NEXO almacena medios cargados por el usuario. El operador debe tener derechos o autorización para procesarlos. No redistribuir materiales protegidos de terceros. La exportación contiene metadatos y texto aportado/indexado; la licencia de uso del contenido original sigue perteneciendo a sus titulares.
+
+## Memoria audiovisual estructurada (0.2)
+
+NEXO 0.2 añade un primer modelo explícito de conocimiento, sin presentar anotaciones manuales como extracción automática:
+
+- **Entidades:** personas, organizaciones, lugares, conceptos, objetos u otros elementos nombrados.
+- **Afirmaciones:** enunciados vinculados a uno o más fragmentos de evidencia.
+- **Relaciones:** conexiones dirigidas entre dos entidades, siempre con evidencia de respaldo.
+- **Procedencia:** cada registro conserva `project_id`, `evidence_ids`, origen (`manual`) y confianza declarada.
+- **Estado Zyrion:** las afirmaciones nuevas comienzan en `2` (Indeterminado); se conservan los estados `1=True`, `0=False`, `2=Indeterminado`. NEXO no ejecuta todavía razonamiento automático ni interpreta este estado como autorización.
+
+La API inicial es:
+
+```http
+GET  /api/projects/{project_id}/knowledge
+POST /api/projects/{project_id}/knowledge/entities
+POST /api/projects/{project_id}/knowledge/claims
+POST /api/projects/{project_id}/knowledge/relations
+```
+
+Toda entidad, afirmación o relación debe citar segmentos existentes del mismo espacio. Las relaciones requieren dos entidades distintas del mismo espacio. Los registros de esta fase son anotaciones manuales; no hay aún extractor multimodal, deduplicación semántica ni resolución automática de contradicciones.

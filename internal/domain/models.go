@@ -42,7 +42,10 @@ type License struct {
 }
 
 type Database struct {
-	Projects map[string]Project `json:"projects"`
-	Assets   map[string]Asset   `json:"assets"`
-	License  License            `json:"license"`
+	Projects  map[string]Project  `json:"projects"`
+	Assets    map[string]Asset    `json:"assets"`
+	Entities  map[string]Entity   `json:"entities"`
+	Claims    map[string]Claim    `json:"claims"`
+	Relations map[string]Relation `json:"relations"`
+	License   License             `json:"license"`
 }

@@ -112,7 +112,7 @@ func readJSON(r *http.Request, v any) error {
 }
 func id(prefix string) string { return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano()) }
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
-	jsonOut(w, 200, map[string]any{"ok": true, "product": "NEXO", "version": "0.1.0"})
+	jsonOut(w, 200, map[string]any{"ok": true, "product": "NEXO", "version": "0.2.0"})
 }
 func (s *Server) config(w http.ResponseWriter, r *http.Request) {
 	coreConfigured := os.Getenv("NEXO_PRISMATEC_URL") != ""
@@ -165,6 +165,17 @@ func (s *Server) projects(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) project(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/projects/"), "/"), "/")
+	if len(parts) >= 2 && parts[1] == "knowledge" {
+		resource := ""
+		if len(parts) == 3 {
+			resource = parts[2]
+		} else if len(parts) > 3 {
+			jsonErr(w, 404, "not found")
+			return
+		}
+		s.knowledge(w, r, parts[0], resource)
+		return
+	}
 	if len(parts) == 2 && parts[1] == "assets" {
 		s.upload(w, r, parts[0])
 		return
@@ -189,6 +200,167 @@ func (s *Server) project(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(assets, func(i, j int) bool { return assets[i].CreatedAt.After(assets[j].CreatedAt) })
 	jsonOut(w, 200, map[string]any{"project": p, "assets": assets})
 }
+func (s *Server) knowledge(w http.ResponseWriter, r *http.Request, projectID, resource string) {
+	db := s.db.Snapshot()
+	if _, ok := db.Projects[projectID]; !ok {
+		jsonErr(w, 404, "project not found")
+		return
+	}
+	if r.Method == http.MethodGet && resource == "" {
+		entities := []domain.Entity{}
+		claims := []domain.Claim{}
+		relations := []domain.Relation{}
+		for _, v := range db.Entities {
+			if v.ProjectID == projectID {
+				entities = append(entities, v)
+			}
+		}
+		for _, v := range db.Claims {
+			if v.ProjectID == projectID {
+				claims = append(claims, v)
+			}
+		}
+		for _, v := range db.Relations {
+			if v.ProjectID == projectID {
+				relations = append(relations, v)
+			}
+		}
+		sort.Slice(entities, func(i, j int) bool { return entities[i].CreatedAt.Before(entities[j].CreatedAt) })
+		sort.Slice(claims, func(i, j int) bool { return claims[i].CreatedAt.Before(claims[j].CreatedAt) })
+		sort.Slice(relations, func(i, j int) bool { return relations[i].CreatedAt.Before(relations[j].CreatedAt) })
+		jsonOut(w, 200, map[string]any{"project_id": projectID, "entities": entities, "claims": claims, "relations": relations})
+		return
+	}
+	if r.Method != http.MethodPost {
+		jsonErr(w, 405, "method not allowed")
+		return
+	}
+	switch resource {
+	case "entities":
+		var in struct {
+			Name        string   `json:"name"`
+			Type        string   `json:"type"`
+			Description string   `json:"description"`
+			EvidenceIDs []string `json:"evidence_ids"`
+			Confidence  float64  `json:"confidence"`
+		}
+		if err := readJSON(r, &in); err != nil || strings.TrimSpace(in.Name) == "" || strings.TrimSpace(in.Type) == "" || len(in.Name) > 200 || len(in.Type) > 80 || len(in.Description) > 2000 || !validConfidence(in.Confidence) || !validEvidenceIDs(db, projectID, in.EvidenceIDs) {
+			jsonErr(w, 400, "invalid entity: name, type, confidence (0..1), and valid evidence_ids are required")
+			return
+		}
+		v := domain.Entity{ID: id("ent"), ProjectID: projectID, Name: strings.TrimSpace(in.Name), Type: strings.TrimSpace(in.Type), Description: strings.TrimSpace(in.Description), EvidenceIDs: uniqueStrings(in.EvidenceIDs), Source: "manual", Confidence: in.Confidence, CreatedAt: time.Now().UTC()}
+		if err := s.db.PutEntity(v); err != nil {
+			jsonErr(w, 500, "cannot persist entity")
+			return
+		}
+		jsonOut(w, 201, v)
+	case "claims":
+		var in struct {
+			Text        string   `json:"text"`
+			Kind        string   `json:"kind"`
+			ZyrionState *int     `json:"zyrion_state"`
+			EntityIDs   []string `json:"entity_ids"`
+			EvidenceIDs []string `json:"evidence_ids"`
+			Confidence  float64  `json:"confidence"`
+		}
+		if err := readJSON(r, &in); err != nil || strings.TrimSpace(in.Text) == "" || len(in.Text) > 4000 || !validConfidence(in.Confidence) || !validEvidenceIDs(db, projectID, in.EvidenceIDs) || !validEntityIDs(db, projectID, in.EntityIDs) {
+			jsonErr(w, 400, "invalid claim: text, confidence, and valid evidence/entity references are required")
+			return
+		}
+		state := 2
+		if in.ZyrionState != nil {
+			state = *in.ZyrionState
+		}
+		if state != 0 && state != 1 && state != 2 {
+			jsonErr(w, 400, "zyrion_state must be 0, 1, or 2")
+			return
+		}
+		kind := strings.TrimSpace(in.Kind)
+		if kind == "" {
+			kind = "statement"
+		}
+		v := domain.Claim{ID: id("clm"), ProjectID: projectID, Text: strings.TrimSpace(in.Text), Kind: kind, ZyrionState: state, EntityIDs: uniqueStrings(in.EntityIDs), EvidenceIDs: uniqueStrings(in.EvidenceIDs), Source: "manual", Confidence: in.Confidence, CreatedAt: time.Now().UTC()}
+		if err := s.db.PutClaim(v); err != nil {
+			jsonErr(w, 500, "cannot persist claim")
+			return
+		}
+		jsonOut(w, 201, v)
+	case "relations":
+		var in struct {
+			SubjectEntityID string   `json:"subject_entity_id"`
+			Predicate       string   `json:"predicate"`
+			ObjectEntityID  string   `json:"object_entity_id"`
+			EvidenceIDs     []string `json:"evidence_ids"`
+			Confidence      float64  `json:"confidence"`
+		}
+		if err := readJSON(r, &in); err != nil || in.SubjectEntityID == "" || in.ObjectEntityID == "" || in.SubjectEntityID == in.ObjectEntityID || strings.TrimSpace(in.Predicate) == "" || len(in.Predicate) > 120 || !validConfidence(in.Confidence) || !validEvidenceIDs(db, projectID, in.EvidenceIDs) || !validEntityIDs(db, projectID, []string{in.SubjectEntityID, in.ObjectEntityID}) {
+			jsonErr(w, 400, "invalid relation: two distinct project entities, predicate, confidence, and valid evidence_ids are required")
+			return
+		}
+		v := domain.Relation{ID: id("rel"), ProjectID: projectID, SubjectEntityID: in.SubjectEntityID, Predicate: strings.TrimSpace(in.Predicate), ObjectEntityID: in.ObjectEntityID, EvidenceIDs: uniqueStrings(in.EvidenceIDs), Source: "manual", Confidence: in.Confidence, CreatedAt: time.Now().UTC()}
+		if err := s.db.PutRelation(v); err != nil {
+			jsonErr(w, 500, "cannot persist relation")
+			return
+		}
+		jsonOut(w, 201, v)
+	default:
+		jsonErr(w, 404, "knowledge resource not found")
+	}
+}
+
+func validConfidence(v float64) bool { return v >= 0 && v <= 1 }
+func uniqueStrings(in []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(in))
+	for _, raw := range in {
+		v := strings.TrimSpace(raw)
+		if v != "" && !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	return out
+}
+func validEvidenceIDs(db domain.Database, projectID string, ids []string) bool {
+	if len(ids) == 0 || len(ids) > 50 {
+		return false
+	}
+	wanted := uniqueStrings(ids)
+	if len(wanted) != len(ids) {
+		return false
+	}
+	found := map[string]bool{}
+	for _, asset := range db.Assets {
+		if asset.ProjectID != projectID {
+			continue
+		}
+		for _, segment := range asset.Segments {
+			found[segment.ID] = true
+		}
+	}
+	for _, id := range ids {
+		if !found[id] {
+			return false
+		}
+	}
+	return true
+}
+func validEntityIDs(db domain.Database, projectID string, ids []string) bool {
+	if len(ids) > 50 {
+		return false
+	}
+	if len(uniqueStrings(ids)) != len(ids) {
+		return false
+	}
+	for _, id := range ids {
+		v, ok := db.Entities[id]
+		if !ok || v.ProjectID != projectID {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) asset(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/assets/"), "/"), "/")
 	if len(parts) < 1 || parts[0] == "" {
