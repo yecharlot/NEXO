@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-let projects=[], activeProject=null, config={};
+let projects=[], activeProject=null, config={}, currentAssets=[], knowledge={entities:[],claims:[],relations:[]};
 const token=()=>localStorage.getItem('nexo_access_token')||'';
 async function api(path,opts={}){opts.headers={...(opts.headers||{})};if(token())opts.headers.Authorization=`Bearer ${token()}`;if(opts.body&&!(opts.body instanceof FormData))opts.headers['Content-Type']='application/json';let r=await fetch(path,opts);if(r.status===401){const t=prompt('Este espacio requiere el token de acceso NEXO:');if(t){localStorage.setItem('nexo_access_token',t);return api(path,opts)}}if(!r.ok){let e={};try{e=await r.json()}catch{};throw new Error(e.error||`HTTP ${r.status}`)}if(r.headers.get('content-type')?.includes('text/csv'))return r.blob();return r.json()}
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2600)}
@@ -8,7 +8,7 @@ function escapeHTML(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 async function init(){try{config=await api('/api/config');$('planBadge').textContent=config.pro?'PRO':'FREE';$('upgradeBtn').hidden=config.pro;$('paymentLink').hidden=!config.payment_url;await loadProjects()}catch(e){toast(e.message)}}
 async function loadProjects(){const d=await api('/api/projects');projects=d.projects||[];renderProjects();if(activeProject){const p=projects.find(x=>x.id===activeProject.id);if(p)await openProject(p);else activeProject=null}if(!activeProject){$('emptyState').hidden=false;$('projectView').hidden=true}}
 function renderProjects(){$('projectList').innerHTML='';projects.forEach(p=>{const b=document.createElement('button');b.className='project-item'+(activeProject?.id===p.id?' active':'');b.innerHTML=`<span>${escapeHTML(p.name)}</span>`;b.onclick=()=>openProject(p);$('projectList').append(b)})}
-async function openProject(p){activeProject=p;renderProjects();const d=await api('/api/projects/'+p.id);$('emptyState').hidden=true;$('projectView').hidden=false;$('projectTitle').textContent=p.name;$('projectDescription').textContent=(p.description||'')+(p.core_status==='connected'?' · PrismaTEC-Core conectado':p.core_status==='not_configured'?' · Core no configurado':'');$('exportBtn').hidden=!config.pro;$('mediaCount').textContent=`${d.assets.length} fuentes`;$('assetCount').textContent=d.assets.length;$('evidenceCount').textContent=d.assets.reduce((n,a)=>n+(a.segments?.length||0),0);renderAssets(d.assets);$('results').innerHTML=''}
+async function openProject(p){activeProject=p;renderProjects();const d=await api('/api/projects/'+p.id);$('emptyState').hidden=true;$('projectView').hidden=false;$('projectTitle').textContent=p.name;$('projectDescription').textContent=(p.description||'')+(p.core_status==='connected'?' · PrismaTEC-Core conectado':p.core_status==='not_configured'?' · Core no configurado':'');$('exportBtn').hidden=!config.pro;$('mediaCount').textContent=`${d.assets.length} fuentes`;$('assetCount').textContent=d.assets.length;$('evidenceCount').textContent=d.assets.reduce((n,a)=>n+(a.segments?.length||0),0);currentAssets=d.assets||[];renderAssets(currentAssets);$('results').innerHTML='';await loadKnowledge()}
 function renderAssets(assets){$('assetList').innerHTML='';if(!assets.length){$('assetList').innerHTML='<div class="muted">Todavía no hay contenidos. Añade un vídeo, una clase o una entrevista.</div>';return}assets.forEach(a=>{const el=document.createElement('div');el.className='asset-card';el.innerHTML=`<strong>${escapeHTML(a.title)}</strong><small>${escapeHTML(a.filename)} · ${(a.size_bytes/1048576).toFixed(1)} MB</small><small>${a.segments?.length||0} evidencias · ${escapeHTML(a.analysis_status)}</small><button class="text-btn" data-id="${a.id}">Abrir fuente ↗</button>`;el.querySelector('button').onclick=()=>openPlayer(a,0);$('assetList').append(el)})}
 function openProjectDialog(){$('projectDialog').showModal()}
 $('newProjectBtn').onclick=openProjectDialog;$('emptyCreateBtn').onclick=openProjectDialog;
@@ -23,3 +23,54 @@ $('closePlayer').onclick=()=>{$('player').pause();$('player').removeAttribute('s
 $('licenseForm').addEventListener('submit',async e=>{e.preventDefault();const key=new FormData(e.currentTarget).get('key');try{await api('/api/license/activate',{method:'POST',body:JSON.stringify({key})});$('licenseDialog').close();await init();toast('Plan Pro activado')}catch(err){toast(err.message)}});
 $('paymentLink').onclick=()=>{if(config.payment_url)window.open(config.payment_url,'_blank','noopener')};
 init();
+
+
+// NEXO 0.3: interfaz de memoria estructurada con procedencia audiovisual.
+function evidenceOptions(){
+ const out=[];
+ currentAssets.forEach(a=>(a.segments||[]).forEach(seg=>out.push({id:seg.id,label:`${a.title} · ${fmt(seg.start)} · ${(seg.text||'').slice(0,100)}`})));
+ return out;
+}
+function fillSelect(select,items,placeholder='Selecciona…'){
+ if(!select)return;select.innerHTML='';
+ if(!select.multiple){const o=document.createElement('option');o.value='';o.textContent=placeholder;select.append(o)}
+ items.forEach(item=>{const o=document.createElement('option');o.value=item.id;o.textContent=item.label;select.append(o)});
+}
+function selectedValues(select){return [...select.selectedOptions].map(o=>o.value).filter(Boolean)}
+function evidenceButton(ids){
+ const id=ids?.[0];if(!id)return '<span class="knowledge-meta">Sin evidencia</span>';
+ return `<button type="button" class="knowledge-evidence" data-evidence="${escapeHTML(id)}">▶ Abrir evidencia original</button>`;
+}
+function bindEvidenceButtons(root){root.querySelectorAll('[data-evidence]').forEach(b=>b.addEventListener('click',()=>{
+ const evidenceID=b.dataset.evidence;
+ for(const asset of currentAssets){const seg=(asset.segments||[]).find(x=>x.id===evidenceID);if(seg){openPlayer(asset,seg.start,seg.text);return}}
+ toast('La evidencia ya no está disponible en esta fuente');
+}));}
+async function loadKnowledge(){
+ if(!activeProject)return;
+ try{knowledge=await api(`/api/projects/${activeProject.id}/knowledge`);renderKnowledge();populateKnowledgeForms()}
+ catch(e){toast(`No se pudo cargar la memoria estructurada: ${e.message}`)}
+}
+function renderKnowledge(){
+ const entities=knowledge.entities||[],claims=knowledge.claims||[],relations=knowledge.relations||[];
+ $('knowledgeCount').textContent=`${entities.length} entidades · ${claims.length} afirmaciones · ${relations.length} relaciones`;
+ const entityNames=new Map(entities.map(e=>[e.id,e.name]));
+ const renderEmpty=(msg)=>`<div class="knowledge-empty">${msg}</div>`;
+ $('entityList').innerHTML=entities.length?entities.map(e=>`<article class="knowledge-card"><strong>${escapeHTML(e.name)}</strong><p>${escapeHTML(e.description||e.type)}</p><div class="knowledge-meta"><span>${escapeHTML(e.type)}</span><span>Confianza ${Math.round((e.confidence||0)*100)}%</span></div>${evidenceButton(e.evidence_ids)}</article>`).join(''):renderEmpty('Todavía no hay entidades registradas.');
+ $('claimList').innerHTML=claims.length?claims.map(c=>`<article class="knowledge-card"><strong>${escapeHTML(c.text)}</strong><p>${(c.entity_ids||[]).map(id=>escapeHTML(entityNames.get(id)||id)).join(' · ')}</p><div class="knowledge-meta"><span class="state-${c.zyrion_state}">Zyrion ${c.zyrion_state} · ${c.zyrion_state===1?'True':c.zyrion_state===0?'False':'Indeterminado'}</span><span>Confianza ${Math.round((c.confidence||0)*100)}%</span></div>${evidenceButton(c.evidence_ids)}</article>`).join(''):renderEmpty('Todavía no hay afirmaciones registradas.');
+ $('relationList').innerHTML=relations.length?relations.map(r=>`<article class="knowledge-card"><strong>${escapeHTML(entityNames.get(r.subject_entity_id)||r.subject_entity_id)} <span class="muted">${escapeHTML(r.predicate)}</span> ${escapeHTML(entityNames.get(r.object_entity_id)||r.object_entity_id)}</strong><div class="knowledge-meta"><span>Confianza ${Math.round((r.confidence||0)*100)}%</span></div>${evidenceButton(r.evidence_ids)}</article>`).join(''):renderEmpty('Todavía no hay relaciones registradas.');
+ bindEvidenceButtons(document.getElementById('entityList'));bindEvidenceButtons(document.getElementById('claimList'));bindEvidenceButtons(document.getElementById('relationList'));
+}
+function populateKnowledgeForms(){
+ const evidence=evidenceOptions().map(e=>({id:e.id,label:e.label}));
+ document.querySelectorAll('.evidence-select').forEach(s=>fillSelect(s,evidence,'Selecciona la evidencia…'));
+ const entities=(knowledge.entities||[]).map(e=>({id:e.id,label:`${e.name} (${e.type})`}));
+ fillSelect($('claimEntities'),entities,'');fillSelect($('relationForm').elements.subject_entity_id,entities,'Entidad de origen…');fillSelect($('relationForm').elements.object_entity_id,entities,'Entidad de destino…');
+ const disabled=entities.length<2 || evidence.length===0;$('addRelationBtn').disabled=disabled;$('addClaimBtn').disabled=evidence.length===0;$('addEntityBtn').disabled=evidence.length===0;
+}
+function openKnowledgeDialog(id){if(!activeProject){toast('Selecciona un espacio primero');return}if(!evidenceOptions().length){toast('Añade una fuente con segmentos de evidencia antes de registrar conocimiento');return}if(id==='relationDialog'&&(knowledge.entities||[]).length<2){toast('Necesitas al menos dos entidades registradas');return}$(id).showModal()}
+$('addEntityBtn').onclick=()=>openKnowledgeDialog('entityDialog');$('addClaimBtn').onclick=()=>openKnowledgeDialog('claimDialog');$('addRelationBtn').onclick=()=>openKnowledgeDialog('relationDialog');
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
+$('entityForm').addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await api(`/api/projects/${activeProject.id}/knowledge/entities`,{method:'POST',body:JSON.stringify({name:f.get('name'),type:f.get('type'),description:f.get('description'),evidence_ids:[f.get('evidence_ids')],confidence:Number(f.get('confidence'))})});$('entityDialog').close();e.currentTarget.reset();await loadKnowledge();toast('Entidad guardada con su evidencia')}catch(err){toast(err.message)}});
+$('claimForm').addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await api(`/api/projects/${activeProject.id}/knowledge/claims`,{method:'POST',body:JSON.stringify({text:f.get('text'),kind:f.get('kind'),zyrion_state:Number(f.get('zyrion_state')),entity_ids:selectedValues($('claimEntities')),evidence_ids:[f.get('evidence_ids')],confidence:Number(f.get('confidence'))})});$('claimDialog').close();e.currentTarget.reset();$('claimForm').elements.zyrion_state.value='2';$('claimForm').elements.kind.value='statement';$('claimForm').elements.confidence.value='0.8';await loadKnowledge();toast('Afirmación guardada como conocimiento trazable')}catch(err){toast(err.message)}});
+$('relationForm').addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await api(`/api/projects/${activeProject.id}/knowledge/relations`,{method:'POST',body:JSON.stringify({subject_entity_id:f.get('subject_entity_id'),predicate:f.get('predicate'),object_entity_id:f.get('object_entity_id'),evidence_ids:[f.get('evidence_ids')],confidence:Number(f.get('confidence'))})});$('relationDialog').close();e.currentTarget.reset();await loadKnowledge();toast('Relación guardada con su evidencia')}catch(err){toast(err.message)}});

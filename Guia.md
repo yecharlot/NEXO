@@ -1,4 +1,4 @@
-# Guía de NEXO 0.2
+# Guía de NEXO 0.3
 
 ## Propósito
 
@@ -106,3 +106,16 @@ Content-Type: application/json
 ```
 
 La API rechaza evidencias inexistentes o pertenecientes a otro espacio, entidades de otro espacio, relaciones autorreferentes y valores de confianza fuera de 0..1. Esta fase crea una memoria estructurada manual y verificable; todavía no extrae entidades ni relaciones automáticamente.
+
+
+## Explorador de conocimiento (NEXO 0.3)
+
+En cada espacio con transcripciones segmentadas aparece la sección **Memoria estructurada**. Desde allí se pueden registrar:
+
+- **Entidades:** nombre, tipo, descripción, confianza y una evidencia de origen.
+- **Afirmaciones:** texto, entidades relacionadas, estado Zyrion y evidencia. El estado inicial es `2 · Indeterminado`; los estados `1` y `0` solo deben seleccionarse cuando exista una revisión humana que los justifique.
+- **Relaciones:** entidad de origen, predicado, entidad de destino y evidencia que respalda la conexión.
+
+Cada tarjeta incluye la acción **Abrir evidencia original**, que abre el reproductor en el segundo del segmento citado. Los selectores solo ofrecen segmentos del espacio activo y entidades registradas en ese mismo espacio. Si una fuente no tiene segmentos de evidencia, primero hay que añadir una transcripción temporizada.
+
+Esta interfaz no genera afirmaciones ni verifica su verdad automáticamente. La confianza es una valoración declarada por quien registra la anotación, no una probabilidad calculada por NEXO. La visualización de grafo con nodos/aristas y la extracción asistida quedan para fases posteriores.

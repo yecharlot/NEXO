@@ -1,8 +1,8 @@
-# NEXO 0.2
+# NEXO 0.3
 
 **Memoria audiovisual con evidencia temporal.** NEXO transforma vídeos, grabaciones, clases, entrevistas y otros materiales autorizados en fuentes consultables: cada fragmento conserva su procedencia y su posición temporal.
 
-> Estado: MVP 0.1 funcional en fase de validación. No es todavía un SaaS multiusuario ni un sistema de IA autónomo. La primera entrega prioriza ingestión, transcripciones/subtítulos, búsqueda transversal y recuperación exacta de evidencias.
+> Estado: MVP 0.1 ampliado con memoria estructurada 0.2 y explorador web 0.3; todavía en fase de validación. No es todavía un SaaS multiusuario ni un sistema de IA autónomo. La primera entrega prioriza ingestión, transcripciones/subtítulos, búsqueda transversal y recuperación exacta de evidencias.
 
 ## Qué puede hacer esta versión
 
@@ -155,3 +155,8 @@ POST /api/projects/{project_id}/knowledge/relations
 ```
 
 Toda entidad, afirmación o relación debe citar segmentos existentes del mismo espacio. Las relaciones requieren dos entidades distintas del mismo espacio. Los registros de esta fase son anotaciones manuales; no hay aún extractor multimodal, deduplicación semántica ni resolución automática de contradicciones.
+
+
+## Explorador de conocimiento (0.3)
+
+La interfaz web permite registrar entidades, afirmaciones y relaciones dentro de cada espacio. Cada anotación debe vincularse a evidencia audiovisual ya indexada; desde las tarjetas se puede abrir el fragmento original en su marca temporal. El estado Zyrion se conserva como `1=True`, `0=False` y `2=Indeterminado` (valor inicial). Estas anotaciones son manuales: NEXO no extrae ni valida automáticamente su contenido. La interfaz actual usa listas estructuradas; el grafo visual interactivo queda pendiente.

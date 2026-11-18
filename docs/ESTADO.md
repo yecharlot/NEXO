@@ -1,4 +1,4 @@
-# Estado de la implementación NEXO 0.2
+# Estado de la implementación NEXO 0.3
 
 ## Implementado
 
@@ -17,6 +17,9 @@
 - Adaptador AIP v1 para crear/iniciar organismos y escribir referencias en memoria.
 - Proxy opcional para Mind, Zyrion y LispAI vía MiniNode.
 - Memoria estructurada manual: entidades, afirmaciones y relaciones.
+- Interfaz web para crear y consultar entidades, afirmaciones y relaciones.
+- Selectores de evidencia y entidades basados en el contenido del espacio activo.
+- Navegación desde cada anotación al fragmento audiovisual original.
 - Validación de pertenencia de evidencias y entidades al mismo espacio.
 - Estado Zyrion ternario en afirmaciones, con valor inicial 2 (Indeterminado).
 - Dockerfile y CI de Go.
@@ -24,6 +27,7 @@
 ## Verificación ejecutada en el entorno de trabajo
 
 - `go test ./... -count=1` — PASS.
+- `git diff --check` — PASS.
 - `go vet ./...` — PASS.
 - `node --check web/app.js` — PASS.
 - GitHub Actions de NEXO 0.1 — PASS en el commit base.
@@ -35,7 +39,7 @@ La CI de la nueva rama debe ejecutarse después de publicar los cambios; no se d
 - Comprensión visual multimodal de fotogramas.
 - Extracción automática de objetos/personas/escenas/entidades/afirmaciones/relaciones.
 - Búsqueda semántica real por embeddings.
-- Consulta y exploración interactiva del grafo.
+- Visualización gráfica de nodos y aristas (la fase 0.3 ofrece exploración en listas estructuradas, no un grafo visual).
 - Resolución de contradicciones mediante Mind/Zyrion.
 - Ejecución LispAI para reglas de dominio automáticas.
 - Autenticación multiusuario, Stripe webhooks y SaaS público.
@@ -44,8 +48,8 @@ La CI de la nueva rama debe ejecutarse después de publicar los cambios; no se d
 
 ## Próximo bloque
 
-1. Añadir importación de anotaciones y visualización del grafo en interfaz.
-2. Diseñar extractor multimodal desacoplado que proponga, no confirme, entidades y afirmaciones.
+1. Incorporar acontecimientos temporales como entidad de dominio explícita.
+2. Diseñar extractor desacoplado que proponga, no confirme, entidades, afirmaciones y acontecimientos.
 3. Añadir revisión humana y auditoría de cambios de estado.
 4. Validar Mind/Zyrion/LispAI con contratos reales y pruebas de integración.
 5. Migrar JSON a SQLite/PostgreSQL antes de multiusuario.

@@ -20,21 +20,29 @@
 - [x] Pruebas de API y persistencia.
 - [ ] Interfaz para crear/revisar anotaciones y explorar el grafo.
 
-## Fase 0.3 — Extracción asistida multimodal
+## Fase 0.3 — Explorador de conocimiento (implementado en esta rama)
+- [x] Crear entidades desde la interfaz web.
+- [x] Crear afirmaciones con selección explícita del estado Zyrion.
+- [x] Crear relaciones entre entidades del mismo espacio.
+- [x] Vincular anotaciones a evidencias existentes.
+- [x] Abrir el audiovisual desde cada evidencia vinculada.
+- [ ] Grafo visual interactivo con nodos y aristas.
+
+## Fase 0.4 — Extracción asistida multimodal
 - [ ] Worker de procesamiento con extracción de audio y keyframes.
 - [ ] OCR y visión por fotogramas con modelos multimodales.
 - [ ] Propuestas automáticas de entidades, acontecimientos y afirmaciones.
 - [ ] Revisión humana obligatoria antes de consolidar conocimiento.
 - [ ] Confianza, procedencia del modelo y trazas de procesamiento.
 
-## Fase 0.4 — Memoria transversal y razonamiento
+## Fase 0.5 — Memoria transversal y razonamiento
 - [ ] Comparación de ideas entre fuentes.
 - [ ] Consulta de grafo y búsqueda semántica/vectorial.
 - [ ] Detección de contradicciones sin colapsar incertidumbre.
 - [ ] Mind/Zyrion con pruebas de reglas y profundidad fractal controlada.
 - [ ] LispAI para reglas declarativas versionadas y sandboxed.
 
-## Fase 0.5 — SaaS público
+## Fase 0.6 — SaaS público
 - [ ] Usuarios, organizaciones, roles y aislamiento multi-tenant.
 - [ ] Stripe Checkout + webhook firmado + portal de suscripciones.
 - [ ] Cuotas, límites de almacenamiento y procesamiento.
