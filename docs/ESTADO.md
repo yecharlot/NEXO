@@ -53,6 +53,9 @@ La CI de la nueva rama debe ejecutarse después de publicar los cambios; no se d
 - Propuestas pendientes separadas del conocimiento consolidado.
 - Revisión humana aceptar/rechazar con nota, responsable genérico y fecha.
 - Interfaz para generar propuestas, abrir evidencia y revisar decisiones.
+- Corrección de actualización de fuentes en el frontend y seguimiento del procesamiento automático.
+- Búsqueda robusta ante respuestas sin coincidencias (lista vacía, no `null`).
+- CI ampliada con comprobación sintáctica de `web/app.js`.
 - Compatibilidad con JSON anterior mediante inicialización del nuevo mapa al abrir la base.
 
 ## Límites explícitos
