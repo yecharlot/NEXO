@@ -636,6 +636,9 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 	}
 	db := s.db.Snapshot()
 	res := search.Search(db.Assets, in.ProjectID, in.Query, in.Limit)
+	if res == nil {
+		res = []search.Result{}
+	}
 	jsonOut(w, 200, map[string]any{"query": in.Query, "count": len(res), "results": res, "mode": "evidence-retrieval"})
 }
 func (s *Server) exportCSV(w http.ResponseWriter, r *http.Request) {
