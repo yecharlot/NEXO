@@ -160,3 +160,18 @@ Toda entidad, afirmación o relación debe citar segmentos existentes del mismo 
 ## Explorador de conocimiento (0.3)
 
 La interfaz web permite registrar entidades, afirmaciones y relaciones dentro de cada espacio. Cada anotación debe vincularse a evidencia audiovisual ya indexada; desde las tarjetas se puede abrir el fragmento original en su marca temporal. El estado Zyrion se conserva como `1=True`, `0=False` y `2=Indeterminado` (valor inicial). Estas anotaciones son manuales: NEXO no extrae ni valida automáticamente su contenido. La interfaz actual usa listas estructuradas; el grafo visual interactivo queda pendiente.
+
+
+## Acontecimientos y extracción asistida (0.4)
+
+NEXO 0.4 incorpora acontecimientos temporales y una bandeja de revisión humana. El extractor inicial es deliberadamente conservador y basado en reglas léxicas explícitas sobre segmentos de transcripción: detecta señales verbales de acontecimientos en español e inglés y crea propuestas pendientes. No utiliza un LLM ni visión artificial, no interpreta causalidad y no confirma que el acontecimiento haya ocurrido. Cada propuesta conserva fuente, intervalo temporal, segmento de evidencia, versión del extractor y estado de revisión.
+
+API:
+
+```http
+GET  /api/projects/{project_id}/events
+POST /api/projects/{project_id}/events/extract
+POST /api/projects/{project_id}/events/{event_id}/review
+```
+
+La revisión acepta `decision` (`accept` o `reject`) y `review_note`. La decisión conserva el registro y la fecha de revisión. Las propuestas no modifican automáticamente entidades, afirmaciones ni relaciones. La interfaz permite abrir la evidencia audiovisual original.

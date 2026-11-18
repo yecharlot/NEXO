@@ -119,3 +119,12 @@ En cada espacio con transcripciones segmentadas aparece la sección **Memoria es
 Cada tarjeta incluye la acción **Abrir evidencia original**, que abre el reproductor en el segundo del segmento citado. Los selectores solo ofrecen segmentos del espacio activo y entidades registradas en ese mismo espacio. Si una fuente no tiene segmentos de evidencia, primero hay que añadir una transcripción temporizada.
 
 Esta interfaz no genera afirmaciones ni verifica su verdad automáticamente. La confianza es una valoración declarada por quien registra la anotación, no una probabilidad calculada por NEXO. La visualización de grafo con nodos/aristas y la extracción asistida quedan para fases posteriores.
+
+
+## Acontecimientos y revisión humana (NEXO 0.4)
+
+En la sección **Acontecimientos**, pulsa **Proponer desde transcripciones**. NEXO analiza segmentos ya indexados y busca señales léxicas explícitas de acciones o sucesos. Cada coincidencia genera una propuesta pendiente con el intervalo y el segmento de origen. La extracción es heurística: puede omitir acontecimientos o proponer falsos positivos; no es comprensión semántica ni validación de hechos.
+
+Abre la evidencia original para revisar el contexto. Después puedes aceptar o rechazar la propuesta y dejar una nota. La decisión queda registrada en el acontecimiento. No se crean entidades, afirmaciones ni relaciones automáticamente ni se cambia el estado Zyrion. Las propuestas rechazadas se conservan para auditoría.
+
+API: `GET /api/projects/{id}/events`, `POST /api/projects/{id}/events/extract` y `POST /api/projects/{id}/events/{event_id}/review`.
