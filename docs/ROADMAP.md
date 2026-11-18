@@ -28,12 +28,15 @@
 - [x] Abrir el audiovisual desde cada evidencia vinculada.
 - [ ] Grafo visual interactivo con nodos y aristas.
 
-## Fase 0.4 — Extracción asistida multimodal
-- [ ] Worker de procesamiento con extracción de audio y keyframes.
-- [ ] OCR y visión por fotogramas con modelos multimodales.
-- [ ] Propuestas automáticas de entidades, acontecimientos y afirmaciones.
-- [ ] Revisión humana obligatoria antes de consolidar conocimiento.
-- [ ] Confianza, procedencia del modelo y trazas de procesamiento.
+## Fase 0.4 — Acontecimientos y extracción asistida (implementación inicial)
+- [x] Modelo de acontecimientos con intervalo temporal y evidencia.
+- [x] Extractor heurístico de señales desde transcripciones.
+- [x] Propuestas pendientes separadas del conocimiento consolidado.
+- [x] Revisión humana aceptar/rechazar con nota y fecha.
+- [x] Procedencia del extractor y versión.
+- [x] Interfaz de extracción, revisión y navegación a evidencia.
+- [ ] Extracción de fotogramas, OCR y visión multimodal.
+- [ ] Extractor semántico configurable mediante proveedor LLM, con evaluación y trazas.
 
 ## Fase 0.5 — Memoria transversal y razonamiento
 - [ ] Comparación de ideas entre fuentes.

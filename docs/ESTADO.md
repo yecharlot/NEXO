@@ -1,4 +1,4 @@
-# Estado de la implementación NEXO 0.3
+# Estado de la implementación NEXO 0.4
 
 ## Implementado
 
@@ -45,6 +45,22 @@ La CI de la nueva rama debe ejecutarse después de publicar los cambios; no se d
 - Autenticación multiusuario, Stripe webhooks y SaaS público.
 - Replicación/recovery de organismos desde la aplicación.
 - Validación de AIP contra un Core real y contratos MiniNode reales.
+
+## Fase 0.4 — Acontecimientos y extracción asistida
+
+- Modelo temporal de acontecimientos con intervalo, fuente, evidencia, procedencia y estado.
+- Extractor heurístico léxico sobre segmentos de transcripción; no utiliza un LLM ni simula visión artificial.
+- Propuestas pendientes separadas del conocimiento consolidado.
+- Revisión humana aceptar/rechazar con nota, responsable genérico y fecha.
+- Interfaz para generar propuestas, abrir evidencia y revisar decisiones.
+- Compatibilidad con JSON anterior mediante inicialización del nuevo mapa al abrir la base.
+
+## Límites explícitos
+
+- La extracción puede producir falsos positivos y falsos negativos.
+- La aceptación es una decisión editorial, no una verificación independiente de verdad.
+- No se crean entidades, afirmaciones ni relaciones automáticamente.
+- No hay extracción visual, OCR ni fotogramas en esta fase.
 
 ## Próximo bloque
 

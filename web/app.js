@@ -8,7 +8,7 @@ function escapeHTML(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 async function init(){try{config=await api('/api/config');$('planBadge').textContent=config.pro?'PRO':'FREE';$('upgradeBtn').hidden=config.pro;$('paymentLink').hidden=!config.payment_url;await loadProjects()}catch(e){toast(e.message)}}
 async function loadProjects(){const d=await api('/api/projects');projects=d.projects||[];renderProjects();if(activeProject){const p=projects.find(x=>x.id===activeProject.id);if(p)await openProject(p);else activeProject=null}if(!activeProject){$('emptyState').hidden=false;$('projectView').hidden=true}}
 function renderProjects(){$('projectList').innerHTML='';projects.forEach(p=>{const b=document.createElement('button');b.className='project-item'+(activeProject?.id===p.id?' active':'');b.innerHTML=`<span>${escapeHTML(p.name)}</span>`;b.onclick=()=>openProject(p);$('projectList').append(b)})}
-async function openProject(p){activeProject=p;renderProjects();const d=await api('/api/projects/'+p.id);$('emptyState').hidden=true;$('projectView').hidden=false;$('projectTitle').textContent=p.name;$('projectDescription').textContent=(p.description||'')+(p.core_status==='connected'?' · PrismaTEC-Core conectado':p.core_status==='not_configured'?' · Core no configurado':'');$('exportBtn').hidden=!config.pro;$('mediaCount').textContent=`${d.assets.length} fuentes`;$('assetCount').textContent=d.assets.length;$('evidenceCount').textContent=d.assets.reduce((n,a)=>n+(a.segments?.length||0),0);currentAssets=d.assets||[];renderAssets(currentAssets);$('results').innerHTML='';await loadKnowledge()}
+async function openProject(p){activeProject=p;renderProjects();const d=await api('/api/projects/'+p.id);$('emptyState').hidden=true;$('projectView').hidden=false;$('projectTitle').textContent=p.name;$('projectDescription').textContent=(p.description||'')+(p.core_status==='connected'?' · PrismaTEC-Core conectado':p.core_status==='not_configured'?' · Core no configurado':'');$('exportBtn').hidden=!config.pro;$('mediaCount').textContent=`${d.assets.length} fuentes`;$('assetCount').textContent=d.assets.length;$('evidenceCount').textContent=d.assets.reduce((n,a)=>n+(a.segments?.length||0),0);currentAssets=d.assets||[];renderAssets(currentAssets);$('results').innerHTML='';await loadKnowledge();await loadEvents()}
 function renderAssets(assets){$('assetList').innerHTML='';if(!assets.length){$('assetList').innerHTML='<div class="muted">Todavía no hay contenidos. Añade un vídeo, una clase o una entrevista.</div>';return}assets.forEach(a=>{const el=document.createElement('div');el.className='asset-card';el.innerHTML=`<strong>${escapeHTML(a.title)}</strong><small>${escapeHTML(a.filename)} · ${(a.size_bytes/1048576).toFixed(1)} MB</small><small>${a.segments?.length||0} evidencias · ${escapeHTML(a.analysis_status)}</small><button class="text-btn" data-id="${a.id}">Abrir fuente ↗</button>`;el.querySelector('button').onclick=()=>openPlayer(a,0);$('assetList').append(el)})}
 function openProjectDialog(){$('projectDialog').showModal()}
 $('newProjectBtn').onclick=openProjectDialog;$('emptyCreateBtn').onclick=openProjectDialog;
@@ -24,6 +24,21 @@ $('licenseForm').addEventListener('submit',async e=>{e.preventDefault();const ke
 $('paymentLink').onclick=()=>{if(config.payment_url)window.open(config.payment_url,'_blank','noopener')};
 init();
 
+
+// NEXO 0.4: propuestas de acontecimientos con revisión humana.
+let projectEvents=[];
+async function loadEvents(){if(!activeProject)return;try{const d=await api(`/api/projects/${activeProject.id}/events`);projectEvents=d.events||[];renderEvents()}catch(e){toast(`No se pudieron cargar los acontecimientos: ${e.message}`)}}
+function renderEvents(){
+ $('eventCount').textContent=`${projectEvents.length} acontecimientos`;
+ const list=$('eventList');list.innerHTML='';
+ if(!projectEvents.length){list.innerHTML='<div class="knowledge-empty">No hay propuestas. Puedes generarlas desde las transcripciones disponibles.</div>';return}
+ projectEvents.forEach(ev=>{const card=document.createElement('article');card.className='knowledge-card';const status=ev.status==='pending'?'Pendiente de revisión':ev.status==='accepted'?'Revisado · aceptado':'Revisado · rechazado';
+ card.innerHTML=`<strong>${escapeHTML(ev.title)}</strong><p>${escapeHTML(ev.description||'')}</p><div class="knowledge-meta"><span>${escapeHTML(status)}</span><span>${fmt(ev.start_seconds)} — ${fmt(ev.end_seconds)}</span><span>${escapeHTML(ev.extractor||'manual')}</span></div>${evidenceButton(ev.evidence_ids)}${ev.status==='pending'?'<div class="knowledge-toolbar"><button class="btn btn-quiet" data-review="accept">Aceptar</button><button class="btn btn-quiet" data-review="reject">Rechazar</button></div>':''}${ev.review_note?`<p class="knowledge-meta">Revisión: ${escapeHTML(ev.review_note)}</p>`:''}`;
+ card.querySelectorAll('[data-review]').forEach(b=>b.onclick=()=>reviewEvent(ev,b.dataset.review));list.append(card);
+ });bindEvidenceButtons(list);
+}
+async function reviewEvent(ev,decision){const note=prompt(decision==='accept'?'Nota de revisión (opcional):':'Motivo del rechazo (opcional):')||'';try{await api(`/api/projects/${activeProject.id}/events/${ev.id}/review`,{method:'POST',body:JSON.stringify({decision,review_note:note})});await loadEvents();toast(decision==='accept'?'Acontecimiento aceptado':'Propuesta rechazada; se conserva la auditoría')}catch(e){toast(e.message)}}
+$('extractEventsBtn').onclick=async()=>{if(!activeProject)return;try{const d=await api(`/api/projects/${activeProject.id}/events/extract`,{method:'POST',body:JSON.stringify({})});await loadEvents();toast(`${d.created} propuestas nuevas; ${d.skipped} segmentos omitidos`)}catch(e){toast(e.message)}};
 
 // NEXO 0.3: interfaz de memoria estructurada con procedencia audiovisual.
 function evidenceOptions(){
