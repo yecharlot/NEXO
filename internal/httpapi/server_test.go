@@ -253,3 +253,40 @@ func readBody(t *testing.T, r *http.Response) string {
 	b, _ := io.ReadAll(r.Body)
 	return string(b)
 }
+
+
+func TestSearchNoMatchesReturnsEmptyArray(t *testing.T) {
+	_, ts := testServer(t)
+	res := postJSON(t, ts.URL, "/api/projects", map[string]string{"name": "Search empty"})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("project status %d", res.StatusCode)
+	}
+	var project struct {
+		ID string `json:"id"`
+	}
+	_ = json.NewDecoder(res.Body).Decode(&project)
+	res.Body.Close()
+
+	res = postJSON(t, ts.URL, "/api/search", map[string]any{
+		"project_id": project.ID,
+		"query":      "not-present",
+		"limit":      10,
+	})
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("search status %d", res.StatusCode)
+	}
+	var out struct {
+		Count   int               `json:"count"`
+		Results []json.RawMessage `json:"results"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Results == nil {
+		t.Fatal("results must be an empty JSON array, not null")
+	}
+	if out.Count != 0 || len(out.Results) != 0 {
+		t.Fatalf("expected zero results, got count=%d results=%d", out.Count, len(out.Results))
+	}
+}
