@@ -8,16 +8,91 @@ function escapeHTML(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 async function init(){try{config=await api('/api/config');$('planBadge').textContent=config.pro?'PRO':'FREE';$('upgradeBtn').hidden=config.pro;$('paymentLink').hidden=!config.payment_url;await loadProjects()}catch(e){toast(e.message)}}
 async function loadProjects(){const d=await api('/api/projects');projects=d.projects||[];renderProjects();if(activeProject){const p=projects.find(x=>x.id===activeProject.id);if(p)await openProject(p);else activeProject=null}if(!activeProject){$('emptyState').hidden=false;$('projectView').hidden=true}}
 function renderProjects(){$('projectList').innerHTML='';projects.forEach(p=>{const b=document.createElement('button');b.className='project-item'+(activeProject?.id===p.id?' active':'');b.innerHTML=`<span>${escapeHTML(p.name)}</span>`;b.onclick=()=>openProject(p);$('projectList').append(b)})}
-async function openProject(p){activeProject=p;renderProjects();const d=await api('/api/projects/'+p.id);$('emptyState').hidden=true;$('projectView').hidden=false;$('projectTitle').textContent=p.name;$('projectDescription').textContent=(p.description||'')+(p.core_status==='connected'?' · PrismaTEC-Core conectado':p.core_status==='not_configured'?' · Core no configurado':'');$('exportBtn').hidden=!config.pro;$('mediaCount').textContent=`${d.assets.length} fuentes`;$('assetCount').textContent=d.assets.length;$('evidenceCount').textContent=d.assets.reduce((n,a)=>n+(a.segments?.length||0),0);currentAssets=d.assets||[];renderAssets(currentAssets);$('results').innerHTML='';await loadKnowledge();await loadEvents()}
+async function openProject(p){
+ activeProject=p;renderProjects();
+ const d=await api('/api/projects/'+encodeURIComponent(p.id));
+ if(activeProject?.id!==p.id)return;
+ $('emptyState').hidden=true;$('projectView').hidden=false;
+ $('projectTitle').textContent=p.name;
+ $('projectDescription').textContent=(p.description||'')+(p.core_status==='connected'?' · PrismaTEC-Core conectado':p.core_status==='not_configured'?' · Core no configurado':'');
+ $('exportBtn').hidden=!config.pro;$('results').innerHTML='';
+ applyProjectAssets(d.assets||[]);
+ await loadKnowledge();await loadEvents();
+}
+function applyProjectAssets(assets){
+ currentAssets=Array.isArray(assets)?assets:[];
+ renderAssets(currentAssets);
+ $('mediaCount').textContent=`${currentAssets.length} fuentes`;
+ $('assetCount').textContent=currentAssets.length;
+ $('evidenceCount').textContent=currentAssets.reduce((n,a)=>n+(a.segments?.length||0),0);
+ populateKnowledgeForms();
+}
+async function refreshProjectAssets(projectID){
+ const d=await api('/api/projects/'+encodeURIComponent(projectID));
+ if(activeProject?.id!==projectID)return;
+ applyProjectAssets(d.assets||[]);
+ return currentAssets;
+}
+async function watchTranscription(projectID,assetID,attempts=40){
+ for(let i=0;i<attempts;i++){
+  await new Promise(resolve=>setTimeout(resolve,1500));
+  if(activeProject?.id!==projectID)return;
+  const asset=await api('/api/assets/'+encodeURIComponent(assetID));
+  await refreshProjectAssets(projectID);
+  if(!['awaiting_transcript','transcribing'].includes(asset.analysis_status))return;
+ }
+ toast('La transcripción sigue en proceso. Puedes continuar trabajando; actualiza el espacio más tarde.');
+}
 function renderAssets(assets){$('assetList').innerHTML='';if(!assets.length){$('assetList').innerHTML='<div class="muted">Todavía no hay contenidos. Añade un vídeo, una clase o una entrevista.</div>';return}assets.forEach(a=>{const el=document.createElement('div');el.className='asset-card';el.innerHTML=`<strong>${escapeHTML(a.title)}</strong><small>${escapeHTML(a.filename)} · ${(a.size_bytes/1048576).toFixed(1)} MB</small><small>${a.segments?.length||0} evidencias · ${escapeHTML(a.analysis_status)}</small><button class="text-btn" data-id="${a.id}">Abrir fuente ↗</button>`;el.querySelector('button').onclick=()=>openPlayer(a,0);$('assetList').append(el)})}
 function openProjectDialog(){$('projectDialog').showModal()}
 $('newProjectBtn').onclick=openProjectDialog;$('emptyCreateBtn').onclick=openProjectDialog;
 $('projectForm').addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{const p=await api('/api/projects',{method:'POST',body:JSON.stringify({name:f.get('name'),description:f.get('description')})});$('projectDialog').close();e.currentTarget.reset();await loadProjects();await openProject(p);toast(p.core_status==='connected'?'Espacio creado y organismo registrado en PrismaTEC-Core':'Espacio creado')}catch(err){toast(err.message)}});
 $('exportBtn').onclick=async()=>{try{const blob=await api('/api/export.csv?project_id='+encodeURIComponent(activeProject.id));const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nexo-evidencias.csv';a.click();URL.revokeObjectURL(url)}catch(e){toast(e.message)}};$('addMediaBtn').onclick=()=>$('uploadDialog').showModal();$('closeUpload').onclick=$('cancelUpload').onclick=()=>$('uploadDialog').close();
-$('uploadForm').addEventListener('submit',async e=>{e.preventDefault();if(!activeProject)return;const form=new FormData(e.currentTarget);const transcript=form.get('transcript');form.delete('transcript');try{const a=await api(`/api/projects/${activeProject.id}/assets`,{method:'POST',body:form});if(transcript.trim())await api(`/api/assets/${a.id}/transcript`,{method:'POST',body:JSON.stringify({text:transcript})});$('uploadDialog').close();e.currentTarget.reset();await openProject(activeProject);toast('Fuente añadida a la memoria')}catch(err){toast(err.message)}});
+$('uploadForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!activeProject)return;
+ const projectID=activeProject.id,form=new FormData(e.currentTarget);
+ const transcript=String(form.get('transcript')||'').trim();form.delete('transcript');
+ const submit=e.currentTarget.querySelector('button[type="submit"]');
+ if(submit){submit.disabled=true;submit.textContent='Guardando…'}
+ try{
+  const a=await api(`/api/projects/${encodeURIComponent(projectID)}/assets`,{method:'POST',body:form});
+  if(activeProject?.id===projectID){applyProjectAssets([a,...currentAssets.filter(x=>x.id!==a.id)])}
+  $('uploadDialog').close();e.currentTarget.reset();
+  if(transcript){
+   try{await api(`/api/assets/${encodeURIComponent(a.id)}/transcript`,{method:'POST',body:JSON.stringify({text:transcript})})}
+   catch(err){await refreshProjectAssets(projectID);toast('La fuente se guardó, pero falló la transcripción: '+err.message);return}
+  }
+  await refreshProjectAssets(projectID);
+  await loadKnowledge();await loadEvents();
+  toast('Fuente añadida a la memoria');
+  if(!transcript&&config.transcription_configured)watchTranscription(projectID,a.id).catch(err=>toast('Error actualizando la transcripción: '+err.message));
+ }catch(err){toast(err.message)}
+ finally{if(submit){submit.disabled=false;submit.textContent='Guardar fuente'}}
+});
 $('searchBtn').onclick=runSearch;$('askBtn').onclick=askNexo;$('searchInput').addEventListener('keydown',e=>{if(e.key==='Enter')runSearch()});
 async function askNexo(){if(!activeProject)return;const question=$('searchInput').value.trim();if(!question){toast('Escribe una pregunta primero');return}try{const d=await api('/api/ask',{method:'POST',body:JSON.stringify({project_id:activeProject.id,question})});const el=document.createElement('section');el.className='result-card';el.innerHTML=`<div class="result-top"><span class="result-source">RESPUESTA NEXO · ${escapeHTML(d.mode)}</span><span class="timestamp">CON EVIDENCIA</span></div><p>${escapeHTML(d.answer).replace(/\n/g,'<br>')}</p><div class="muted">${escapeHTML(d.warning||'')}</div>`;$('results').prepend(el);toast('Respuesta generada; revisa las evidencias citadas')}catch(e){toast(e.message)}}
-async function runSearch(){if(!activeProject)return;const q=$('searchInput').value.trim();if(!q)return;try{const d=await api('/api/search',{method:'POST',body:JSON.stringify({project_id:activeProject.id,query:q,limit:40})});$('results').innerHTML='';if(!d.results.length){$('results').innerHTML='<div class="muted">No encontramos coincidencias literales. En esta versión, la búsqueda utiliza las transcripciones indexadas.</div>';return}d.results.forEach(r=>{const el=document.createElement('article');el.className='result-card';el.innerHTML=`<div class="result-top"><span class="result-source">${escapeHTML(r.asset_title)}</span><span class="timestamp">${r.timestamp_source==='estimated'?'≈':''}${fmt(r.start)} — ${fmt(r.end)}</span></div><p>${escapeHTML(r.text)}</p><div class="result-actions"><button class="text-btn">▶ Abrir en este momento</button><span class="muted">Evidencia ${escapeHTML(r.evidence_id)}</span></div>`;el.querySelector('button').onclick=()=>openPlayer({id:r.asset_id,title:r.asset_title},r.start,r.text);$('results').append(el)});toast(`${d.count} evidencias encontradas`)}catch(e){toast(e.message)}}
+async function runSearch(){
+ if(!activeProject){toast('Selecciona un espacio de conocimiento');return}
+ const q=$('searchInput').value.trim();
+ if(!q){toast('Escribe una palabra o frase para buscar');return}
+ try{
+  const d=await api('/api/search',{method:'POST',body:JSON.stringify({project_id:activeProject.id,query:q,limit:40})});
+  const results=Array.isArray(d.results)?d.results:[];
+  $('results').innerHTML='';
+  if(!results.length){
+   const hasEvidence=currentAssets.some(a=>Array.isArray(a.segments)&&a.segments.length>0);
+   $('results').innerHTML=`<div class="muted">${hasEvidence?'No encontramos coincidencias literales. Prueba con otras palabras presentes en la transcripción.':'Esta fuente todavía no tiene evidencias indexadas. Añade una transcripción temporizada o configura la transcripción automática.'}</div>`;
+   toast('Búsqueda completada: 0 coincidencias');return;
+  }
+  results.forEach(r=>{
+   const el=document.createElement('article');el.className='result-card';
+   el.innerHTML=`<div class="result-top"><span class="result-source">${escapeHTML(r.asset_title)}</span><span class="timestamp">${r.timestamp_source==='estimated'?'≈':''}${fmt(r.start)} — ${fmt(r.end)}</span></div><p>${escapeHTML(r.text)}</p><div class="result-actions"><button class="text-btn">▶ Abrir en este momento</button><span class="muted">Evidencia ${escapeHTML(r.evidence_id)}</span></div>`;
+   el.querySelector('button').onclick=()=>openPlayer({id:r.asset_id,title:r.asset_title},r.start,r.text);
+   $('results').append(el);
+  });
+  toast(`${results.length} evidencias encontradas`);
+ }catch(e){toast('Error en la búsqueda: '+e.message)}
+}
 async function openPlayer(a,sec,evidence=''){try{const full=await api('/api/assets/'+a.id);const media=await api('/api/assets/'+a.id+'/media-url');$('playerTitle').textContent=full.title;$('player').src=media.url;$('player').onloadedmetadata=()=>{$('player').currentTime=sec||0};$('playerEvidence').textContent=evidence?`Evidencia: ${evidence}`:`Fuente: ${full.filename} · enlace temporal`; $('playerDialog').showModal()}catch(e){toast(e.message)}}
 $('closePlayer').onclick=()=>{$('player').pause();$('player').removeAttribute('src');$('player').load();$('playerDialog').close()};$('upgradeBtn').onclick=()=>$('licenseDialog').showModal();
 $('licenseForm').addEventListener('submit',async e=>{e.preventDefault();const key=new FormData(e.currentTarget).get('key');try{await api('/api/license/activate',{method:'POST',body:JSON.stringify({key})});$('licenseDialog').close();await init();toast('Plan Pro activado')}catch(err){toast(err.message)}});
