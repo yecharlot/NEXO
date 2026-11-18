@@ -1,4 +1,4 @@
-# Guía de NEXO 0.3
+# Guía de NEXO 0.4
 
 ## Propósito
 
@@ -10,7 +10,7 @@ NEXO convierte material audiovisual propio o autorizado en evidencia recuperable
 2. (Opcional) Instalar FFmpeg para transcripción automática.
 3. Copiar `.env.example` a `.env` y configurar secretos/proveedores.
 4. Ejecutar `go test ./...`.
-5. Ejecutar `go run ./cmd/nexo`.
+5. Ejecutar `NEXO_PRO_KEY='NEXO-LOCAL-TEST-2026' NEXO_DATA_DIR=./data-pruebas go run ./cmd/nexo` para habilitar una licencia Pro de prueba en un entorno local aislado.
 6. Abrir `http://localhost:8090`.
 7. Crear un espacio y cargar un vídeo, audio o grabación.
 8. Pegar una transcripción temporizada o configurar `NEXO_TRANSCRIPTION_KEY` para transcripción automática.
@@ -46,13 +46,13 @@ NEXO no importa paquetes internos del Core. La integración es remota mediante A
 
 ## Mind, Zyrion y LispAI
 
-Configurar `NEXO_MININODE_URL` para reenviar peticiones a MiniNode:
+Configurar `NEXO_MININODE_URL` para reenviar peticiones a MiniNode (puente opcional, distinto de PrismaTEC-Core AIP):
 
 - `POST /api/cognition/mind` con `{ "text": "..." }`.
 - `POST /api/cognition/zyrion` con `{ "env": {}, "labels": [] }`.
 - `POST /api/cognition/lispai` con `{ "cmd": "..." }`.
 
-La interfaz HTTP existe como puente; no se activa una inferencia de negocio automática. La integración cognitiva debe preservar evidencia, reglas y procedencia. Zyrion: `1=True`, `0=False`, `2=Indeterminado`, con el estado 2 como sumidero que abre otro nivel de razonamiento. Ninguna inferencia sustituye a la política de autorización del Core.
+La interfaz HTTP existe como puente; no se activa una inferencia de negocio automática. El AIP v1 actual de PrismaTEC-Core aún no publica Mind/Zyrion como operaciones remotas. Su enumeración ternaria interna tampoco coincide con el contrato NEXO; la integración requiere extender AIP y validar la correspondencia antes de usarla. La integración cognitiva debe preservar evidencia, reglas y procedencia. Zyrion: `1=True`, `0=False`, `2=Indeterminado`, con el estado 2 como sumidero que abre otro nivel de razonamiento. Ninguna inferencia sustituye a la política de autorización del Core.
 
 ## Seguridad y operación
 
