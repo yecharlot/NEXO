@@ -17,7 +17,7 @@ type Store struct {
 }
 
 func Open(path string) (*Store, error) {
-	s := &Store{path: path, db: domain.Database{Projects: map[string]domain.Project{}, Assets: map[string]domain.Asset{}, Entities: map[string]domain.Entity{}, Claims: map[string]domain.Claim{}, Relations: map[string]domain.Relation{}}}
+	s := &Store{path: path, db: domain.Database{Projects: map[string]domain.Project{}, Assets: map[string]domain.Asset{}, Entities: map[string]domain.Entity{}, Claims: map[string]domain.Claim{}, Relations: map[string]domain.Relation{}, Events: map[string]domain.Event{}}}
 	b, err := os.ReadFile(path)
 	if err == nil {
 		if err = json.Unmarshal(b, &s.db); err != nil {
@@ -41,6 +41,9 @@ func Open(path string) (*Store, error) {
 	}
 	if s.db.Relations == nil {
 		s.db.Relations = map[string]domain.Relation{}
+	}
+	if s.db.Events == nil {
+		s.db.Events = map[string]domain.Event{}
 	}
 	return s, nil
 }
@@ -109,3 +112,7 @@ func (s *Store) ActivatePro() error {
 	return s.persistLocked()
 }
 func (s *Store) IsPro() bool { s.mu.RLock(); defer s.mu.RUnlock(); return s.db.License.Plan == "pro" }
+
+func (s *Store) PutEvent(v domain.Event) error {
+ s.mu.Lock(); defer s.mu.Unlock(); s.db.Events[v.ID]=v; return s.persistLocked()
+}

@@ -47,5 +47,6 @@ type Database struct {
 	Entities  map[string]Entity   `json:"entities"`
 	Claims    map[string]Claim    `json:"claims"`
 	Relations map[string]Relation `json:"relations"`
+	Events map[string]Event `json:"events"`
 	License   License             `json:"license"`
 }

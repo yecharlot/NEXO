@@ -165,6 +165,12 @@ func (s *Server) projects(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) project(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/projects/"), "/"), "/")
+	if len(parts) >= 2 && parts[1] == "events" {
+		resource := ""
+		if len(parts) > 2 { resource = strings.Join(parts[2:], "/") }
+		s.events(w, r, parts[0], resource)
+		return
+	}
 	if len(parts) >= 2 && parts[1] == "knowledge" {
 		resource := ""
 		if len(parts) == 3 {
